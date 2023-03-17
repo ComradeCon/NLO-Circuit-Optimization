@@ -68,7 +68,7 @@ class CircuitAnalyzer:
     def __make_AC_analysis(self) -> dict:
         AC_analyses = dict()
         for key, value in self.simulators.items():
-            AC_analyses[key] = value.ac(start_frequency=1@u_kHz, stop_frequency=200@u_MHz, number_of_points=4,  variation='dec')
+            AC_analyses[key] = value.ac(start_frequency=1@u_kHz, stop_frequency=100@u_MHz, number_of_points=4,  variation='dec')
         return AC_analyses
     
     # slow, very dumb slow

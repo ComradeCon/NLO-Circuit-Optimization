@@ -41,7 +41,7 @@ if __name__ == "__main__":
     cascode_dict = sub_dicts.get_cascode_dict(trans)
 
     kMax = 500
-    numWalk = 50
+    numWalk = 1
     Tinit = 250
 
     with tqdm(total=kMax*numWalk) as pbar:
