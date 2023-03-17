@@ -26,9 +26,8 @@ def make_bode_plot_from_list(analysis_list):
         bode_diagram(axes=(ax1, ax2),
                     frequency=analysis.frequency,
                     gain=20*np.log10(np.absolute([x.value for x in np.absolute(analysis.AC_out)])),
-                    phase=np.angle([x.value for x in np.absolute(analysis.AC_out)], deg=False),
+                    phase=np.angle(analysis.AC_out, deg=False),
                     marker='.',
-                    color='blue',
                     linestyle='-',
                     )
     plt.tight_layout()

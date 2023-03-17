@@ -18,7 +18,7 @@ from circuit_analysis import *
 
 
 
-def temperature(T,b=0.833):
+def temperature(T, b=0.833):
     return T*b
 
 k_B = 1000#1.38*10**(-23)
@@ -80,20 +80,20 @@ def iter_resistor(R,n):
 #   k ← k + 1                                       // One more evaluation done
 # return sbest         
 
-def run_walk(T, kMax, s_0, free_vars, currTrans, pbar):
+def run_walk(T : float, kMax : int, s_0 : dict, free_vars : list, pbar):
     s = s_0.copy()
     sbest = s.copy()
-    e = -get_GBWP(s, currTrans)
+    e = -CircuitAnalyzer(s).goodness
     e_0 = e
     ebest = e
     eplison = 10**(-5)
     b = (eplison/T)**(1/kMax)
 
     while T > eplison:
-        T = temperature(T,b=b)
+        T = temperature(T, b=b)
         snew = neighbour(s=s, free_vars=free_vars, sd=10)
         try:
-            enew = -get_GBWP(snew, currTrans)
+            enew = -CircuitAnalyzer(s).goodness
         except:
             print(f"Something went wrong with: {snew}")
             enew = 0
