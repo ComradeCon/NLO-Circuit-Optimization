@@ -24,7 +24,7 @@ class SubCircuitDictionaries:
     # capacitors in micro farads 
     def get_cascode_dict(self, trans : dict[str,str]) -> dict[str, float | dict[str,str]]:
         return {
-            'Cc' : 1,
+            'Cc' : 10**6,
             'RB1' : 95300,
             'RB2' : 10500,
             'RB3' : 20500,
@@ -33,6 +33,16 @@ class SubCircuitDictionaries:
             'RE' : 226,
             'trans' : trans
         }
+        # return {
+        #     'Cc' : 10**6,
+        #     'RB1' : 10000,
+        #     'RB2' : 10000,
+        #     'RB3' : 10000,
+        #     'RC' : 1000,
+        #     'RE_deg' : 10,
+        #     'RE' : 100,
+        #     'trans' : trans
+        # }
 
 # Cc on input but not output
 class Cascode(SubCircuitFactory):
@@ -64,5 +74,5 @@ def get_base_circuit() -> Circuit:
     # general circuit definition 
     circuit.V('VDC', 'Vcc', circuit.gnd, 9@u_V)
     circuit.C('Cc_load','out','AC_out', 1@u_uF)
-    circuit.R('R_load','AC_out',circuit.gnd,2.5@u_kΩ)  
+    circuit.R('R_load','AC_out',circuit.gnd, 2500@u_Ω)  
     return circuit
