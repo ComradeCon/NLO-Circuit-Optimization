@@ -16,6 +16,7 @@ def make_bode_plot(analysis):
                 color='blue',
                 linestyle='-',
                 )
+    ax1.hlines([61.5,58.5],[0,0],[100*10**6,100*10**6])
     plt.tight_layout()
     plt.show()
 
