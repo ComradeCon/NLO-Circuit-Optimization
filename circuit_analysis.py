@@ -23,13 +23,17 @@ dicts = SubCircuitDictionaries()
 trans_dict = dicts.get_trans_dict()
 
 class CircuitAnalyzer:
-    def __init__(self, curr_dict : dict[str, float | dict[str,str]]) -> None:
+    def __init__(self, curr_dict : dict[str, float | dict[str,str]], isFull : bool = True) -> None:
         self.curr_dict = curr_dict
+        self.isFull = isFull
         self.circuits = self.__make_circuit()
         self.simulators = self.__make_simulator()
         self.__DC_analyses = self.__make_DC_analysis()
         self.OP_current = self.__get_OP_current()
-        self.OP_current_goodness = max(min(1,1 if self.OP_current <= 0.01 else 1-(100*(self.OP_current-0.01))**2),0.001)
+        if isFull:
+            self.OP_current_goodness = max(min(1,1 if self.OP_current <= 0.01 else 1-(100*(self.OP_current-0.01))**2),0.001)
+        else:
+            self.OP_current_goodness = max(min(1,1 if self.OP_current <= 0.025 else 1-(100*(self.OP_current-0.025))**2),0.001)
         if (self.OP_current_goodness > 0.5):
         # AC analysis
             self.__AC_analyses = self.__make_AC_analysis()
@@ -52,12 +56,20 @@ class CircuitAnalyzer:
         for key, value in self.curr_dict['trans'].items(): # type: ignore
             circuit = get_base_circuit()
             circuit.SinusoidalVoltageSource('AC_voltage', 'ac_in', circuit.gnd, amplitude=1@u_V) 
-            circuit.R('RAC', 'ac_in', 'in_node', 1500@u_Ω)
-            circuit.include(trans_dict[value])
-            # circuit.subcircuit(Cascode(self.curr_dict, value))
-            # circuit.X('cascode1','cascode','Vcc', circuit.gnd,'in_node','out')
-            circuit.subcircuit(FeedBackAmp(self.curr_dict, value))
-            circuit.X('fbamp1','feedbackamp','Vcc', circuit.gnd,'in_node','out')
+            if self.isFull:
+                circuit.R('RAC', 'ac_in', 'in_node', 1500@u_Ω)
+                circuit.include(trans_dict[value])
+                # circuit.subcircuit(Cascode(self.curr_dict, value))
+                # circuit.X('cascode1','cascode','Vcc', circuit.gnd,'in_node','out')
+                circuit.subcircuit(FeedBackAmp(self.curr_dict, value))
+                circuit.X('fbamp1','feedbackamp','Vcc', circuit.gnd,'in_node','out')
+                circuit.R('R_load','AC_out',circuit.gnd, 300@u_Ω) 
+            else:
+                circuit.R('RAC', 'ac_in', 'in_node', 100@u_Ω)
+                circuit.include(trans_dict[value])
+                circuit.subcircuit(GainStage(self.curr_dict, value))
+                circuit.X('gainstage1','gainStage','Vcc', circuit.gnd,'in_node','out','FB_in')
+                circuit.R('R_load','AC_out',circuit.gnd, 30000@u_Ω) 
             circuits[key] = circuit
         return circuits
 
@@ -92,24 +104,27 @@ class CircuitAnalyzer:
             DC_gain_curr = self.gains[key][0].value
             index_3dB = None
             for i, x in enumerate(self.gains[key]):
-                # if x.value <= DC_gain_curr*0.707 or x.value >= DC_gain_curr/0.707:
-                if x.value > 1188.5 or x.value < 944:
+                if ((not self.isFull) and (x.value <= DC_gain_curr*0.707 or x.value >= DC_gain_curr/0.707)) or (self.isFull and (x.value > 1188.5 or x.value < 944)):
                     index_3dB = i
                     break
-            if index_3dB != None and (BW_min == None or self.gains[key][index_3dB] < BW_min):
-                # BW_min = self.__lin_approx(freq[index_3dB].value,self.gains[key][index_3dB],freq[index_3dB-1].value,self.gains[key][index_3dB-1], DC_gain_curr*0.707)
-                if index_3dB == 0:
-                    i = 0
-                    BW_min = 0
-                    while(freq[i] < 7.2*10**6):
-                        BW_min += (self.gains[key][i] - 1000)**2
-                        i += 1
-                    BW_min = np.sqrt(BW_min)**(-1)
+            currBW = None
+            if index_3dB > 1:
+                if self.isFull:
+                    currBW = self.__lin_approx(freq[index_3dB].value,self.gains[key][index_3dB],freq[index_3dB-1].value,self.gains[key][index_3dB-1], DC_gain_curr*0.944)
                 else:
-                    BW_min = self.__lin_approx(freq[index_3dB].value,self.gains[key][index_3dB],freq[index_3dB-1].value,self.gains[key][index_3dB-1], DC_gain_curr*0.944)
+                    currBW = self.__lin_approx(freq[index_3dB].value,self.gains[key][index_3dB],freq[index_3dB-1].value,self.gains[key][index_3dB-1], DC_gain_curr*0.707)
+            elif self.isFull:
+                j = 0
+                currBW = 0
+                while(freq[j] < 7.2*10**6):
+                    currBW += (self.gains[key][j] - 1000)**2
+                    j += 1
+                currBW = min(np.sqrt(currBW)**(-1), 10**6)
+            if index_3dB != None and currBW != None and (BW_min == None or currBW < BW_min):
                 DC_gain_min = DC_gain_curr
                 key_min = key
-        return (lambda: (BW_min, DC_gain_min, key_min), lambda: (0,0,"NOM"))[BW_min == None]() 
+                BW_min = currBW
+        return (lambda: (BW_min, DC_gain_min, key_min), lambda: (0,0,"LO"))[BW_min == None]() 
 
     def __lin_approx(self, x1, y1, x2, y2, y_target):
         return (y_target-y1)*(x2-x1)/(y2-y1) + x1
@@ -131,8 +146,10 @@ class CircuitAnalyzer:
         return self.BW*self.DC_gain
 
     def __get_goodness(self) -> float: 
-        return self.BW*self.OP_current_goodness
-        # return self.GBWP*self.OP_current_goodness
+        if self.isFull:
+            return self.BW*self.OP_current_goodness
+        else:
+            return self.__get_GBWP()*self.OP_current_goodness
     
     def get_AC_analysis(self):
         return self.__AC_analyses[self.key_min]

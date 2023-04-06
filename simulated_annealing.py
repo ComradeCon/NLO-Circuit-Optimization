@@ -40,10 +40,12 @@ def P(E_past, E_new, T):
         # return np.exp(-(E_new - E_past)/T)
     
 # define free variables 
-free_vars = ['RF','cascode1','cascode2']
+free_vars_full = ['RF','cascode1','cascode2', 'outStage']
+free_vars_gain = ['cascode1', 'cascode2']
 free_vars_dict = {
     'cascode1' : ['RB1','RB2','RB3','RC','RE_deg','RE'],
-    'cascode2' : ['RB1','RB2','RB3','RC','RE_deg','RE']
+    'cascode2' : ['RB1','RB2','RB3','RC','RE_deg','RE'],
+    'outStage' : ['RE']
 }
 
 def neighbour(s, free_vars, sd=2):
@@ -97,13 +99,19 @@ def iter_resistor(R,n):
 #   k ← k + 1                                       // One more evaluation done
 # return sbest         
 
-def final_run_walk(s_0: dict, e_0 : float, k : int):
-    ebest = e_0
+def final_run_walk(s_0: dict, k : int, isFull):
+    e_0 = -CircuitAnalyzer(s_0).goodness
     sbest = s_0.copy()
+    ebest = e_0
+    free_vars = None
+    if isFull:
+        free_vars = free_vars_full
+    else:
+        free_vars = free_vars_gain
     for i in tqdm(range(int(k))):
-        snew = neighbour(s=sbest, free_vars=free_vars, sd=1)
+        snew = neighbour(s=sbest, free_vars=free_vars, sd=2)
         try:
-            enew = -CircuitAnalyzer(snew).goodness
+            enew = -CircuitAnalyzer(snew,isFull).goodness
         except:
             print(f"Something went wrong with: {snew}")
             enew = 0
@@ -114,20 +122,24 @@ def final_run_walk(s_0: dict, e_0 : float, k : int):
     print(f"Improvement: {abs(ebest-e_0):0.2E}")
     return sbest, ebest
 
-def run_walk(T : float, kMax : int, s_0 : dict, pbar):
+def run_walk(T : float, kMax : int, s_0 : dict, pbar, isFull : bool):
     Tmax = T
     s = s_0.copy()
     sbest = s.copy()
-    e = -CircuitAnalyzer(s).goodness
+    e = -CircuitAnalyzer(s,isFull).goodness
     ebest = e
     eplison = 10**(-5)
     b = (eplison/T)**(1/kMax)
-
+    free_vars = None
+    if isFull:
+        free_vars = free_vars_full
+    else:
+        free_vars = free_vars_gain
     while T > eplison:
         T = temperature(T, b=b)
-        snew = neighbour(s=s, free_vars=free_vars, sd=2)
+        snew = neighbour(s=s, free_vars=free_vars, sd=8*T/Tmax + 2)
         try:
-            enew = -CircuitAnalyzer(snew).goodness
+            enew = -CircuitAnalyzer(snew,isFull).goodness
         except:
             print(f"Something went wrong with: {snew}")
             enew = 0

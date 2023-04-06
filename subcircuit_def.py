@@ -77,7 +77,7 @@ class SubCircuitDictionaries:
             'RB2' : 365000,
             'RB3' : 147000,
             'RC' : 301,
-            'RE' : 133
+            'RE' : 110
         }
 
     def get_feedbackamp_dict(self, trans):
@@ -135,6 +135,16 @@ class Cascode2(SubCircuitFactory):
         self.C('Cc3','VE2','gnd',cascodeDict['Cc']@u_uF)
         self.R('RE','VE2','gnd',cascodeDict['RE']@u_Ω)
 
+class GainStage(SubCircuitFactory):
+    NODES = ('Vcc','gnd','in_node','out','FB_in')
+    NAME = 'gainStage'
+    def __init__(self, gainDict : dict[str, float | dict[str, str]], trans : str):
+        super().__init__()
+        self.subcircuit(Cascode1(gainDict['cascode1'], trans))
+        self.X('cascode_1','cascode1','Vcc', 'gnd','in_node','gain_int','FB_in')
+        self.subcircuit(Cascode2(gainDict['cascode2'], trans))
+        self.X('cascode_2','cascode2','Vcc', 'gnd','gain_int','out')
+
 # Cc on input but not output
 class InputStage(SubCircuitFactory):
     NODES = ('Vcc','gnd','in_node','out')
@@ -179,14 +189,13 @@ class FeedBackAmp(SubCircuitFactory):
         self.subcircuit(InputStage(fbDict['inStage'], trans))
         self.X('in_Stage','inStage','Vcc','gnd','in_node','gain_in')
         # Gain Stages
-        self.subcircuit(Cascode1(fbDict['cascode1'], trans))
-        self.X('cascode_1','cascode1','Vcc', 'gnd','gain_in','gain_int','FB_in')
-        self.subcircuit(Cascode2(fbDict['cascode2'], trans))
-        self.X('cascode_2','cascode2','Vcc', 'gnd','gain_int','gain_out')
+        self.subcircuit(GainStage(fbDict,trans))
+        self.X('gain_Stage','gainStage','Vcc','gnd','gain_in','gain_out','FB_in')
         self.R('RF','gain_out','FB_in',fbDict['RF']@u_Ω)
         # Output Stage
         self.subcircuit(OutStage(fbDict['outStage'], trans))
         self.X('out_stage','outStage','Vcc','gnd','gain_out','out')
+
 
 
 def get_base_circuit() -> Circuit:
@@ -195,6 +204,5 @@ def get_base_circuit() -> Circuit:
     
     # general circuit definition 
     circuit.V('VDC', 'Vcc', circuit.gnd, 9@u_V)
-    circuit.C('Cc_load','out','AC_out', 1@u_F)
-    circuit.R('R_load','AC_out',circuit.gnd, 300@u_Ω)  
+    circuit.C('Cc_load','out','AC_out', 1@u_F) 
     return circuit

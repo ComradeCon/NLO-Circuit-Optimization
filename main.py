@@ -14,7 +14,7 @@ import atexit
 from subcircuit_def import SubCircuitDictionaries
 from circuit_analysis import *
 from graphing import *
-from simulated_annealing import run_walk, final_run_walk
+from simulated_annealing import run_walk, final_run_walk, iter_resistor
 import helper_funcs
 
 #####################################
@@ -38,30 +38,44 @@ if __name__ == "__main__":
     sub_dicts = SubCircuitDictionaries()
     fb_dict = sub_dicts.get_feedbackamp_dict(trans)
 
-    fb_dict_better, _ = final_run_walk(fb_dict, 0.00001, k=5000)
-
-    kMax = 10
+    kMax = 1
     numWalk = 1
-    Tinit = 10/np.log(1/0.45-1)
+    Tinit = 1/np.log(1/0.45-1)
+    fb_dict_better, e_better = final_run_walk(fb_dict, k=100, isFull=True)
+    sbest_list.append(fb_dict_better)
+    ebest_list.append(e_better)
+
+    isFull = False
 
     print("Running Simulated Annealing...")
     with tqdm(total=kMax*numWalk) as pbar:
         for i in range(numWalk):
-            sbest, ebest = run_walk(T=Tinit, kMax=kMax, s_0=fb_dict_better, pbar=pbar)
+            sbest, ebest = run_walk(T=Tinit, kMax=kMax, s_0=fb_dict_better, pbar=pbar, isFull=isFull)
             sbest_list.append(sbest)
             ebest_list.append(ebest)
     
-    print(sbest_list[np.argmin(ebest_list)])
-    print(f'Ebest: {min(ebest_list):0.2E}')
+    index_best = np.argmin(ebest_list)
+    start_analyser = CircuitAnalyzer(fb_dict_better, False)
+    end_analyser = CircuitAnalyzer(sbest_list[index_best], False)
+    print(f"Start: BW: {start_analyser.BW:.2E}, Gain: {start_analyser.DC_gain:.2E}, Current: {start_analyser.OP_current:.2E}, Goodness: {start_analyser.goodness:.2E}")
+    print(f"Best: BW: {end_analyser.BW:.2E}, Gain: {end_analyser.DC_gain:.2E}, Current: {end_analyser.OP_current:.2E}, Goodness: {end_analyser.goodness:.2E}")
+    # print(sbest_analyser.OP_current)
+    make_bode_plot(start_analyser.get_AC_analysis())
+    make_bode_plot(end_analyser.get_AC_analysis())
+
+    # if not isFull:
+    #     sbest_list[index_best]["RF"] = iter_resistor(sbest_list[index_best]["cascode1"]["RE_deg"]*1000,1)
+    print(f'Ebest: {ebest_list[index_best]:0.2E}')
+    print(sbest_list[index_best])
     print("Running Greedy Walk...")
-    sbest, ebest = final_run_walk(sbest_list[np.argmin(ebest_list)], min(ebest_list), k=5000)
+    sbest, ebest = final_run_walk(sbest_list[index_best], k=10000, isFull=True)
     print(sbest)
     sbest_list.append(sbest)
     ebest_list.append(ebest)
     sbest_analyser = CircuitAnalyzer(sbest)
     sstart_analyser = CircuitAnalyzer(fb_dict)
-    print(f"Best: BW: {sbest_analyser.BW:.2E}, Gain: {sbest_analyser.DC_gain:.2E}, Current: {sbest_analyser.OP_current:.2E}")#, Goodness: {sbest_analyser.goodness:.2E}")
-    print(f"Start BW: {sstart_analyser.BW:.2E}, Gain: {sstart_analyser.DC_gain:.2E}, Current: {sstart_analyser.OP_current:.2E}")#, Goodness: {sstart_analyser.goodness:.2E}")
+    print(f"Best: BW: {sbest_analyser.BW:.2E}, Gain: {sbest_analyser.DC_gain:.2E}, Current: {sbest_analyser.OP_current:.2E}, Goodness: {sbest_analyser.goodness:.2E}")
+    print(f"Start BW: {sstart_analyser.BW:.2E}, Gain: {sstart_analyser.DC_gain:.2E}, Current: {sstart_analyser.OP_current:.2E}, Goodness: {sstart_analyser.goodness:.2E}")
     # print(sbest_analyser.OP_current)
     make_bode_plot(sbest_analyser.get_AC_analysis())
 
