@@ -74,19 +74,19 @@ class Cascode1(SubCircuitFactory):
     def __init__(self, cascodeDict : dict[str, float | dict[str, str]], trans : str):
         super().__init__()
         # bias resistors
-        self.R('RB1','Vcc','VB1',cascodeDict['RB1']@u_Ω)
-        self.R('RB2','VB1','VB2',cascodeDict['RB2']@u_Ω)
-        self.R('RB3','VB2','gnd',cascodeDict['RB3']@u_Ω)
+        self.R('RB1','Vcc','VB1',cascodeDict['RB1']@u_Ohm)
+        self.R('RB2','VB1','VB2',cascodeDict['RB2']@u_Ohm)
+        self.R('RB3','VB2','gnd',cascodeDict['RB3']@u_Ohm)
         # bias Cc
         self.C('Cc1','in_node','VB2', cascodeDict['Cc']@u_uF)
         self.C('Cc2','gnd','VB1', cascodeDict['Cc']@u_uF)
         # transistors
-        self.R('RC','Vcc','out',cascodeDict['RC']@u_Ω)
+        self.R('RC','Vcc','out',cascodeDict['RC']@u_Ohm)
         self.BJT('Q1','out','VB1','VC',model=trans) # type: ignore
         self.BJT('Q2','VC','VB2','VE',model=trans) # type: ignore
-        self.R('RE_deg','VE','VE2',cascodeDict['RE_deg']@u_Ω)
+        self.R('RE_deg','VE','VE2',cascodeDict['RE_deg']@u_Ohm)
         self.C('Cc3','VE2','gnd',cascodeDict['Cc']@u_uF)
-        self.R('RE','VE2','gnd',cascodeDict['RE']@u_Ω)
+        self.R('RE','VE2','gnd',cascodeDict['RE']@u_Ohm)
 
 # Cc on input but not output
 class Cascode2(SubCircuitFactory):
@@ -95,19 +95,19 @@ class Cascode2(SubCircuitFactory):
     def __init__(self, cascodeDict : dict[str, float | dict[str, str]], trans : str):
         super().__init__()
         # bias resistors
-        self.R('RB1','Vcc','VB1',cascodeDict['RB1']@u_Ω)
-        self.R('RB2','VB1','VB2',cascodeDict['RB2']@u_Ω)
-        self.R('RB3','VB2','gnd',cascodeDict['RB3']@u_Ω)
+        self.R('RB1','Vcc','VB1',cascodeDict['RB1']@u_Ohm)
+        self.R('RB2','VB1','VB2',cascodeDict['RB2']@u_Ohm)
+        self.R('RB3','VB2','gnd',cascodeDict['RB3']@u_Ohm)
         # bias Cc
         self.C('Cc1','in_node','VB2', cascodeDict['Cc']@u_uF)
         self.C('Cc2','gnd','VB1', cascodeDict['Cc']@u_uF)
         # transistors
-        self.R('RC','Vcc','out',cascodeDict['RC']@u_Ω)
+        self.R('RC','Vcc','out',cascodeDict['RC']@u_Ohm)
         self.BJT('Q1','out','VB1','VC',model=trans) # type: ignore
         self.BJT('Q2','VC','VB2','VE',model=trans) # type: ignore
-        self.R('RE_deg','VE','VE2',cascodeDict['RE_deg']@u_Ω)
+        self.R('RE_deg','VE','VE2',cascodeDict['RE_deg']@u_Ohm)
         self.C('Cc3','VE2','gnd',cascodeDict['Cc']@u_uF)
-        self.R('RE','VE2','gnd',cascodeDict['RE']@u_Ω)
+        self.R('RE','VE2','gnd',cascodeDict['RE']@u_Ohm)
 
 # Cc on input but not output
 class InputStage(SubCircuitFactory):
@@ -118,11 +118,11 @@ class InputStage(SubCircuitFactory):
         # Input Cap
         self.C('Cc1','in_node','VB', inputDict['Cc']@u_uF)
         # bias resistors
-        self.R('RB1', 'Vcc', 'VB', inputDict['RB1']@u_Ω)
-        self.R('RB2', 'VB', 'gnd', inputDict['RB2']@u_Ω)
+        self.R('RB1', 'Vcc', 'VB', inputDict['RB1']@u_Ohm)
+        self.R('RB2', 'VB', 'gnd', inputDict['RB2']@u_Ohm)
         # transistor 
         self.BJT('Q1','Vcc','VB','out',model=trans) # type: ignore
-        self.R('RE','out','gnd',inputDict['RE']@u_Ω)
+        self.R('RE','out','gnd',inputDict['RE']@u_Ohm)
 
 # Cc on input but not output
 class OutStage(SubCircuitFactory):
@@ -131,17 +131,17 @@ class OutStage(SubCircuitFactory):
     def __init__(self, outDict : dict[str, float | dict[str, str]], trans : str):
         super().__init__()
         # bias resistors
-        self.R('RB1','Vcc','VB1',outDict['RB1']@u_Ω)
-        self.R('RB2','VB1','VB2',outDict['RB2']@u_Ω)
-        self.R('RB3','VB2','gnd',outDict['RB3']@u_Ω)
+        self.R('RB1','Vcc','VB1',outDict['RB1']@u_Ohm)
+        self.R('RB2','VB1','VB2',outDict['RB2']@u_Ohm)
+        self.R('RB3','VB2','gnd',outDict['RB3']@u_Ohm)
         # bias Cc
         self.C('Cc1','in_node','VB2', outDict['Cc']@u_uF)
         self.C('Cc2','gnd','VB1', outDict['Cc']@u_uF)
         # transistors
-        self.R('RC','Vcc','out',outDict['RC']@u_Ω)
+        self.R('RC','Vcc','out',outDict['RC']@u_Ohm)
         self.BJT('Q1','out','VB1','VC',model=trans) # type: ignore
         self.BJT('Q2','VC','VB2','VE',model=trans) # type: ignore
-        self.R('RE','VE','gnd',outDict['RE']@u_Ω)
+        self.R('RE','VE','gnd',outDict['RE']@u_Ohm)
 
 # Cc on input but not output
 class FeedBackAmp(SubCircuitFactory):
@@ -157,7 +157,7 @@ class FeedBackAmp(SubCircuitFactory):
         self.X('cascode_1','cascode1','Vcc', 'gnd','gain_in','gain_int','FB_in')
         self.subcircuit(Cascode2(fbDict['cascode2'], trans))
         self.X('cascode_2','cascode2','Vcc', 'gnd','gain_int','gain_out')
-        self.R('RF','gain_out','FB_in',fbDict['RF']@u_Ω)
+        self.R('RF','gain_out','FB_in',fbDict['RF']@u_Ohm)
         # Output Stage
         self.subcircuit(OutStage(fbDict['outStage'], trans))
         self.X('out_stage','outStage','Vcc','gnd','gain_out','out')
@@ -170,5 +170,5 @@ def get_base_circuit() -> Circuit:
     # general circuit definition 
     circuit.V('VDC', 'Vcc', circuit.gnd, 9@u_V)
     circuit.C('Cc_load','out','AC_out', 1@u_F)
-    circuit.R('R_load','AC_out',circuit.gnd, 300@u_Ω)  
+    circuit.R('R_load','AC_out',circuit.gnd, 300@u_Ohm)  
     return circuit

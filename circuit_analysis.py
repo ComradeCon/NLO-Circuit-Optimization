@@ -44,7 +44,7 @@ class CircuitAnalyzer:
         for key, value in self.curr_dict['trans'].items(): # type: ignore
             circuit = get_base_circuit()
             circuit.SinusoidalVoltageSource('AC_voltage', 'ac_in', circuit.gnd, amplitude=1@u_V) 
-            circuit.R('RAC', 'ac_in', 'in_node', 1500@u_Ω)
+            circuit.R('RAC', 'ac_in', 'in_node', 1500@u_Ohm)
             circuit.include(trans_dict[value])
             circuit.subcircuit(FeedBackAmp(self.curr_dict, value))
             circuit.X('fbamp1','feedbackamp','Vcc', circuit.gnd,'in_node','out')

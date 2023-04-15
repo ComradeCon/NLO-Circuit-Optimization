@@ -73,7 +73,7 @@ class singleton:
             print("Simulated Annealing")
             self.kAnnealing = int(input("Num steps per walk: "))
             self.nWalk = int(input("Num walks: "))
-            self.T = float(input("Starting Temperature (recomment <1.25): "))
+            self.T = float(input("Starting Temperature (recommend <1.25): "))
             print()
             print("Greedy Random Walk")
             self.kGreedy = int(input("Num steps: "))
