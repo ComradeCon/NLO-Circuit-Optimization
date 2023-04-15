@@ -10,13 +10,6 @@ from PySpice.Unit import *
 
 from subcircuit_def import *
 
-'''
-Goals:
-- calculate gain bandwidth product
-- calculate power draw 
-- check if circuit breaks design rules
-'''
-
 mega_goodness = []
 
 dicts = SubCircuitDictionaries()
@@ -39,7 +32,6 @@ class CircuitAnalyzer:
                 self.frequencies[key] = value.frequency
                 self.gains[key] = np.absolute(value.AC_out)
             self.BW, self.DC_gain, self.key_min = self.__get_BW()
-            # self.GBWP = self.__get_GBWP()
             self.goodness = self.__get_goodness()
             mega_goodness.append(self.goodness)
         else:
@@ -54,8 +46,6 @@ class CircuitAnalyzer:
             circuit.SinusoidalVoltageSource('AC_voltage', 'ac_in', circuit.gnd, amplitude=1@u_V) 
             circuit.R('RAC', 'ac_in', 'in_node', 1500@u_Ω)
             circuit.include(trans_dict[value])
-            # circuit.subcircuit(Cascode(self.curr_dict, value))
-            # circuit.X('cascode1','cascode','Vcc', circuit.gnd,'in_node','out')
             circuit.subcircuit(FeedBackAmp(self.curr_dict, value))
             circuit.X('fbamp1','feedbackamp','Vcc', circuit.gnd,'in_node','out')
             circuits[key] = circuit
@@ -93,7 +83,6 @@ class CircuitAnalyzer:
             if DC_gain_curr > 100:
                 index_3dB = None
                 for i, x in enumerate(self.gains[key]):
-                    # if x.value <= DC_gain_curr*0.707 or x.value >= DC_gain_curr/0.707:
                     if x.value > 1188.5 or x.value < 944:
                         index_3dB = i
                         break
@@ -121,19 +110,6 @@ class CircuitAnalyzer:
     def __lin_approx(self, x1, y1, x2, y2, y_target):
         return (y_target-y1)*(x2-x1)/(y2-y1) + x1
 
-    # def __get_BW(self, pm_range_db = 3) -> tuple[float, str, float]:
-    #     temp, DC_gain, key_min = self.__get_working_range(pm_range_db=pm_range_db)
-    
-    #     key_min = ''
-    #     value_min = np.inf
-    #     for key, value in temp.items():
-    #         curr_BW = value[-1][0] - value[0][0]
-    #         if curr_BW < value_min:
-    #             key_min = key
-    #             value_min = curr_BW
-
-    #     return value_min, key_min, mid_gains[key_min]
-
     def __get_GBWP(self) -> float:
         return self.BW*self.DC_gain
 
@@ -143,9 +119,6 @@ class CircuitAnalyzer:
             return goodness
         else:
             return 0
-        # return self.GBWP*self.OP_current_goodness
     
     def get_AC_analysis(self):
         return self.__AC_analyses[self.key_min]
-
-    
