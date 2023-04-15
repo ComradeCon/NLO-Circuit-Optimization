@@ -3,11 +3,6 @@ from PySpice.Unit import *
 
 ################################################
 
-# def check_valid_dict(dictionary : dict):
-#     for key, value in dictionary.items():
-#         if type(value) != type("lol") and value < 0:
-#             raise ValueError(f"{key} has bad value of {value}")
-
 class SubCircuitDictionaries:
     def __init__(self) -> None:
         pass
@@ -32,15 +27,6 @@ class SubCircuitDictionaries:
             'RE_deg' : 19.6,
             'RE' : 237
         }
-        # return {
-        #     'Cc' : 10**6,
-        #     'RB1' : 10000,
-        #     'RB2' : 10000,
-        #     'RB3' : 10000,
-        #     'RC' : 1000,
-        #     'RE_deg' : 10,
-        #     'RE' : 100
-        # }
 
     def get_cascode2_dict(self) -> dict[str, float | dict[str,str]]:
         return {
@@ -52,15 +38,6 @@ class SubCircuitDictionaries:
             'RE_deg' : 11.0,
             'RE' : 383
         }
-        # return {
-        #     'Cc' : 10**6,
-        #     'RB1' : 10000,
-        #     'RB2' : 10000,
-        #     'RB3' : 10000,
-        #     'RC' : 1000,
-        #     'RE_deg' : 10,
-        #     'RE' : 100
-        # }
     
     def get_inStage_dict(self) -> dict[str, float | dict[str,str]]:
         return {
@@ -86,8 +63,7 @@ class SubCircuitDictionaries:
             'cascode2' : self.get_cascode2_dict(),
             'inStage' : self.get_inStage_dict(),
             'outStage' : self.get_outStage_dict(),
-            # 'RF' : 30100,
-            'RF' : 26100, 
+            'RF' : 30100,
             'trans' : trans
         }
 
@@ -97,7 +73,6 @@ class Cascode1(SubCircuitFactory):
     NAME = 'cascode1'
     def __init__(self, cascodeDict : dict[str, float | dict[str, str]], trans : str):
         super().__init__()
-        # check_valid_dict(cascodeDict)
         # bias resistors
         self.R('RB1','Vcc','VB1',cascodeDict['RB1']@u_Ω)
         self.R('RB2','VB1','VB2',cascodeDict['RB2']@u_Ω)
@@ -119,7 +94,6 @@ class Cascode2(SubCircuitFactory):
     NAME = 'cascode2'
     def __init__(self, cascodeDict : dict[str, float | dict[str, str]], trans : str):
         super().__init__()
-        # check_valid_dict(cascodeDict)
         # bias resistors
         self.R('RB1','Vcc','VB1',cascodeDict['RB1']@u_Ω)
         self.R('RB2','VB1','VB2',cascodeDict['RB2']@u_Ω)

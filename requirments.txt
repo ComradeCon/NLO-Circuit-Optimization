@@ -1,6 +1,0 @@
-matplotlib
-scipy
-PySpice
-pint
-tqdm
-snakeviz

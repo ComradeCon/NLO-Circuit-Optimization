@@ -2,48 +2,29 @@ import numpy as np
 from PySpice.Unit import *
 from circuit_analysis import *
 from tqdm import tqdm
-
-# s ← s0; e ← E(s)                                  // Initial state, energy.
-# sbest ← s; ebest ← e                              // Initial "best" solution
-# k ← 0                                             // Energy evaluation count.
-# while k < kmax and e > emax                       // While time left & not good enough:
-#   T ← temperature(k/kmax)                         // Temperature calculation.
-#   snew ← neighbour(s)                             // Pick some neighbour.
-#   enew ← E(snew)                                  // Compute its energy.
-#   if P(e, enew, T) > random() then                // Should we move to it?
-#     s ← snew; e ← enew                            // Yes, change state.
-#   if enew < ebest then                            // Is this a new best?
-#     sbest ← snew; ebest ← enew                    // Save 'new neighbour' to 'best found'.
-#   k ← k + 1                                       // One more evaluation done
-# return sbest             
-
-
+from helper_funcs import single
 
 def temperature(T, b=0.833):
     return T*b
 
-k_B = 1000#1.38*10**(-23)
-
 def P(E_past, E_new, T):
+    if(E_new >= -1):
+        return False
     temp = E_new - E_past
     if temp < 0:
         return True
-    temp /= T
+    temp /= T*abs(E_past)/2
     if temp < 4:
         return 1/(1 + np.exp(temp)) > np.random.random()
     else:
         return False
- 
-        # num = np.exp(-E_new.value/(k_B*T))
-        # denom = np.sum([np.exp(-E_i.value/(k_B*T)) for E_i in E_past])
-        # return num/denom
-        # return np.exp(-(E_new - E_past)/T)
     
 # define free variables 
-free_vars = ['RF','cascode1','cascode2']
+free_vars = ['RF','cascode1','cascode2','outStage']
 free_vars_dict = {
     'cascode1' : ['RB1','RB2','RB3','RC','RE_deg','RE'],
-    'cascode2' : ['RB1','RB2','RB3','RC','RE_deg','RE']
+    'cascode2' : ['RB1','RB2','RB3','RC','RE_deg','RE'],
+    'outStage' : ['RE']
 }
 
 def neighbour(s, free_vars, sd=2):
@@ -82,39 +63,45 @@ def iter_resistor(R,n):
         return 21.5*10**6
     else:
         return return_val
-    
-# s ← s0; e ← E(s)                                  // Initial state, energy.
-# sbest ← s; ebest ← e                              // Initial "best" solution
-# k ← 0                                             // Energy evaluation count.
-# while k < kmax and e > emax                       // While time left & not good enough:
-#   T ← temperature(k/kmax)                         // Temperature calculation.
-#   snew ← neighbour(s)                             // Pick some neighbour.
-#   enew ← E(snew)                                  // Compute its energy.
-#   if P(e, enew, T) > random() then                // Should we move to it?
-#     s ← snew; e ← enew                            // Yes, change state.
-#   if enew < ebest then                            // Is this a new best?
-#     sbest ← snew; ebest ← enew                    // Save 'new neighbour' to 'best found'.
-#   k ← k + 1                                       // One more evaluation done
-# return sbest         
-
-def final_run_walk(s_0: dict, e_0 : float, k : int):
+      
+def final_run_walk(s_0: dict, k : int):
+    e_0 = -CircuitAnalyzer(s_0).goodness
     ebest = e_0
     sbest = s_0.copy()
-    for i in tqdm(range(int(k))):
-        snew = neighbour(s=sbest, free_vars=free_vars, sd=1)
-        try:
-            enew = -CircuitAnalyzer(snew).goodness
-        except:
-            print(f"Something went wrong with: {snew}")
-            enew = 0
+    if not single.isVerbose:
+        for i in tqdm(range(int(k))):
+            snew = neighbour(s=sbest, free_vars=free_vars, sd=single.sigma)
+            try:
+                enew = -CircuitAnalyzer(snew).goodness
+            except:
+                print(f"Something went wrong with: {snew}")
+                enew = 0
 
-        if enew < ebest:
-            sbest = snew.copy()
-            ebest = enew
+            if enew < ebest:
+                sbest = snew.copy()
+                ebest = enew
+    else:
+        for i in range(int(k)):
+            snew = neighbour(s=sbest, free_vars=free_vars, sd=single.sigma)
+            try:
+                enew = -CircuitAnalyzer(snew).goodness
+            except:
+                print(f"Something went wrong with: {snew}")
+                enew = 0
+
+            if enew < ebest:
+                sbest = snew.copy()
+                ebest = enew
+
+            if single.isVerbose and i%100 == 0:
+                print(f"{round(i/k*100)}% Complete")
+                print(f"Best Energy: {ebest:.2E}")
+                print(f" New Energy: {enew:.2E}")
+                print()
     print(f"Improvement: {abs(ebest-e_0):0.2E}")
     return sbest, ebest
 
-def run_walk(T : float, kMax : int, s_0 : dict, pbar):
+def run_walk(T : float, kMax : int, s_0 : dict, pbar=0):
     Tmax = T
     s = s_0.copy()
     sbest = s.copy()
@@ -123,17 +110,14 @@ def run_walk(T : float, kMax : int, s_0 : dict, pbar):
     eplison = 10**(-5)
     b = (eplison/T)**(1/kMax)
 
-    while T > eplison:
+    for i in range(kMax):
         T = temperature(T, b=b)
-        snew = neighbour(s=s, free_vars=free_vars, sd=2)
+        snew = neighbour(s=s, free_vars=free_vars, sd=single.sigma)
         try:
             enew = -CircuitAnalyzer(snew).goodness
         except:
             print(f"Something went wrong with: {snew}")
             enew = 0
-
-        # print(f'Rand:{np.random.random()}')
-        # print(P(e, enew, e_0, T))
         
         if P(e, enew, T):
             s = snew.copy()
@@ -143,6 +127,13 @@ def run_walk(T : float, kMax : int, s_0 : dict, pbar):
             sbest = snew.copy()
             ebest = enew
 
-        pbar.update()
+        if single.isVerbose and i%100 == 0:
+            print(f"{round(i/kMax*100)}% Complete")
+            print(f"Current Energy: {e:.2E}")
+            print(f"    New Energy: {enew:.2E}")
+            print()
+
+        if not single.isVerbose:
+            pbar.update()
 
     return sbest, ebest

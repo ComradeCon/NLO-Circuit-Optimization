@@ -8,14 +8,15 @@ from PySpice.Unit import *
 from tqdm import tqdm
 import csv
 import atexit
+import time
 
 #####################################
 
 from subcircuit_def import SubCircuitDictionaries
 from circuit_analysis import *
 from graphing import *
-from simulated_annealing import run_walk, final_run_walk
-import helper_funcs
+from simulated_annealing import run_walk, final_run_walk, neighbour, free_vars
+from helper_funcs import single
 
 #####################################
     
@@ -32,48 +33,74 @@ def capture_data():
 atexit.register(capture_data)
 
 if __name__ == "__main__":
+
     # settings
-    trans = {"LO" :"ZTX107-LO", "HI" : "ZTX107-HI"} #{"NOM" : "ZTX107-NOM"}
-    
+    trans = {}
+    if single.dBeta:
+        trans = {"LO" :"ZTX107-LO", "HI" : "ZTX107-HI"} 
+    else:
+        trans = {"NOM" : "ZTX107-NOM"} 
     sub_dicts = SubCircuitDictionaries()
     fb_dict = sub_dicts.get_feedbackamp_dict(trans)
 
-    fb_dict_better, _ = final_run_walk(fb_dict, 0.00001, k=5000)
+    if single.isRand: 
+        temp = neighbour(fb_dict, free_vars, 10)
+        gain_start = CircuitAnalyzer(temp).DC_gain
+        while(gain_start > 944 or gain_start < 400): # randomize within bounds
+            temp = neighbour(fb_dict, free_vars, 10)
+            gain_start = CircuitAnalyzer(temp).DC_gain
+        fb_dict = temp
 
-    kMax = 10
-    numWalk = 1
-    Tinit = 10/np.log(1/0.45-1)
+    v = single.isVerbose
+    kMax = single.kAnnealing
+    numWalk = single.nWalk
+    Tinit = single.T
 
-    print("Running Simulated Annealing...")
-    with tqdm(total=kMax*numWalk) as pbar:
+    startSA = time.time()
+    if v:
+        if single.isRand and single.isVerbose:
+            make_bode_plot(CircuitAnalyzer(fb_dict).get_AC_analysis())
+        print("Running Simulated Annealing in Verbose Mode...")
         for i in range(numWalk):
-            sbest, ebest = run_walk(T=Tinit, kMax=kMax, s_0=fb_dict_better, pbar=pbar)
+            print(f"Walk #{i+1}...")
+            sbest, ebest = run_walk(T=Tinit, kMax=kMax, s_0=fb_dict)
             sbest_list.append(sbest)
             ebest_list.append(ebest)
-    
-    print(sbest_list[np.argmin(ebest_list)])
-    print(f'Ebest: {min(ebest_list):0.2E}')
+    else:
+        print("Running Simulated Annealing...")
+        with tqdm(total=kMax*numWalk) as pbar:
+            for i in range(numWalk):
+                sbest, ebest = run_walk(T=Tinit, kMax=kMax, s_0=fb_dict, pbar=pbar)
+                sbest_list.append(sbest)
+                ebest_list.append(ebest)
+    endSA = time.time()
+    if v:
+        print(f'Simulated Annealing Ebest: {min(ebest_list):0.2E}')
+        print()
     print("Running Greedy Walk...")
-    sbest, ebest = final_run_walk(sbest_list[np.argmin(ebest_list)], min(ebest_list), k=5000)
-    print(sbest)
-    sbest_list.append(sbest)
-    ebest_list.append(ebest)
-    sbest_analyser = CircuitAnalyzer(sbest)
+    sbest, ebest = final_run_walk(fb_dict, k=single.kGreedy)
+    print()
+    endGRW = time.time()
+    sGRW_analyser = CircuitAnalyzer(sbest)
+    sSA_analyser = CircuitAnalyzer(sbest_list[np.argmin(ebest_list)])
     sstart_analyser = CircuitAnalyzer(fb_dict)
-    print(f"Best: BW: {sbest_analyser.BW:.2E}, Gain: {sbest_analyser.DC_gain:.2E}, Current: {sbest_analyser.OP_current:.2E}")#, Goodness: {sbest_analyser.goodness:.2E}")
-    print(f"Start BW: {sstart_analyser.BW:.2E}, Gain: {sstart_analyser.DC_gain:.2E}, Current: {sstart_analyser.OP_current:.2E}")#, Goodness: {sstart_analyser.goodness:.2E}")
-    # print(sbest_analyser.OP_current)
-    make_bode_plot(sbest_analyser.get_AC_analysis())
+    print(f"        Neigbour SD: {single.sigma:.2}")
+    print(f"           SA Steps: {kMax}, SA Walks: {numWalk}, Temp: {single.T}")
+    print(f"          GRW Steps: {single.kGreedy}")
+    print(f"    Check Trans Tol: {single.dBeta}")
+    print()
+    print(f"               Goal: BW:>{7.2*10**6:.2E}, Gain:~{1000:.2E}, Current:<{0.012:.2E}")
+    print(f"              Start: BW: {sstart_analyser.BW:.2E}, Gain: {sstart_analyser.DC_gain:.2E}, Current: {sstart_analyser.OP_current:.2E}")
+    print(f"Simulated Annealing: BW: {sSA_analyser.BW:.2E}, Gain: {sSA_analyser.DC_gain:.2E}, Current: {sSA_analyser.OP_current:.2E}, Time: {round(endSA - startSA)}s")
+    print(f" Greedy Random Walk: BW: {sGRW_analyser.BW:.2E}, Gain: {sGRW_analyser.DC_gain:.2E}, Current: {sGRW_analyser.OP_current:.2E}, Time: {round(endGRW - endSA)}s")
+
+    make_bode_plot_from_list([sstart_analyser.get_AC_analysis(), sSA_analyser.get_AC_analysis(), sGRW_analyser.get_AC_analysis()]) 
 
     plt.scatter([i for i in range(len(mega_goodness))],mega_goodness)
+    plt.xlabel("Iteration #")
+    plt.ylabel("Goodness")
+    plt.title("Goodness vs Cummulative Iteration #")
     plt.show()
 
-    make_bode_plot_from_list([sstart_analyser.get_AC_analysis(), sbest_analyser.get_AC_analysis()]) 
-
-    # norm_dist = [np.sqrt(np.sum([(s_curr[key]/fb_dict[key] - 1)**2 for key in free_vars])) for s_curr in sbest_list]
-    # make_2d_plot(norm_dist, [-e_i for e_i in ebest_list])
-
-
-
-    
-
+    sbest_list.append(sbest)
+    ebest_list.append(ebest)

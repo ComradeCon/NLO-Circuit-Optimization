@@ -41,11 +41,11 @@ class CircuitAnalyzer:
             self.BW, self.DC_gain, self.key_min = self.__get_BW()
             # self.GBWP = self.__get_GBWP()
             self.goodness = self.__get_goodness()
+            mega_goodness.append(self.goodness)
         else:
             self.BW = 0
             self.DC_gain = 0
-            self.goodness = 0
-        mega_goodness.append(self.goodness)
+            self.goodness = -1
     
     def __make_circuit(self) -> dict[str, Circuit]:
         circuits = {}
@@ -81,7 +81,7 @@ class CircuitAnalyzer:
     def __make_AC_analysis(self) -> dict:
         AC_analyses = dict()
         for key, value in self.simulators.items():
-            AC_analyses[key] = value.ac(start_frequency=1@u_kHz, stop_frequency=100@u_MHz, number_of_points=10,  variation='dec')
+            AC_analyses[key] = value.ac(start_frequency=1@u_kHz, stop_frequency=100@u_MHz, number_of_points=50,  variation='dec')
         return AC_analyses
     
     def __get_BW(self) -> tuple[float, float, str]:
@@ -90,26 +90,33 @@ class CircuitAnalyzer:
         key_min = ""
         for key, freq in self.frequencies.items():
             DC_gain_curr = self.gains[key][0].value
-            index_3dB = None
-            for i, x in enumerate(self.gains[key]):
-                # if x.value <= DC_gain_curr*0.707 or x.value >= DC_gain_curr/0.707:
-                if x.value > 1188.5 or x.value < 944:
-                    index_3dB = i
-                    break
-            if index_3dB != None and (BW_min == None or self.gains[key][index_3dB] < BW_min):
-                # BW_min = self.__lin_approx(freq[index_3dB].value,self.gains[key][index_3dB],freq[index_3dB-1].value,self.gains[key][index_3dB-1], DC_gain_curr*0.707)
-                if index_3dB == 0:
-                    i = 0
-                    BW_min = 0
-                    while(freq[i] < 7.2*10**6):
-                        BW_min += (self.gains[key][i] - 1000)**2
-                        i += 1
-                    BW_min = np.sqrt(BW_min)**(-1)
-                else:
-                    BW_min = self.__lin_approx(freq[index_3dB].value,self.gains[key][index_3dB],freq[index_3dB-1].value,self.gains[key][index_3dB-1], DC_gain_curr*0.944)
-                DC_gain_min = DC_gain_curr
-                key_min = key
-        return (lambda: (BW_min, DC_gain_min, key_min), lambda: (0,0,"NOM"))[BW_min == None]() 
+            if DC_gain_curr > 100:
+                index_3dB = None
+                for i, x in enumerate(self.gains[key]):
+                    # if x.value <= DC_gain_curr*0.707 or x.value >= DC_gain_curr/0.707:
+                    if x.value > 1188.5 or x.value < 944:
+                        index_3dB = i
+                        break
+                if index_3dB > 1:
+                    currBW = self.__lin_approx(freq[index_3dB].value,self.gains[key][index_3dB],freq[index_3dB-1].value,self.gains[key][index_3dB-1], DC_gain_curr*0.944)
+                else: 
+                    if index_3dB == 0:
+                        for i, x in enumerate(self.gains[key]):
+                            if x.value <= DC_gain_curr*0.707 or x.value >= DC_gain_curr/0.707:
+                                index_3dB = i
+                                break
+                        currBW = self.__lin_approx(freq[index_3dB].value,self.gains[key][index_3dB],freq[index_3dB-1].value,self.gains[key][index_3dB-1], DC_gain_curr*0.707)
+                        i = 0
+                        adj = 0
+                        while(freq[i].value < 7.2*10**6):
+                            adj += min((self.gains[key][i].value - 1188.5)**2,(self.gains[key][i].value - 944)**2)
+                            i += 1
+                        currBW /= np.sqrt(adj)/i
+                if index_3dB != None and currBW != None and (BW_min == None or currBW < BW_min):
+                    BW_min = currBW
+                    DC_gain_min = DC_gain_curr
+                    key_min = key
+        return (lambda: (BW_min, DC_gain_min, key_min), lambda: (0,0,self.curr_dict['trans'][list(self.curr_dict['trans'].keys())[0]]))[BW_min == None]() 
 
     def __lin_approx(self, x1, y1, x2, y2, y_target):
         return (y_target-y1)*(x2-x1)/(y2-y1) + x1
@@ -131,7 +138,11 @@ class CircuitAnalyzer:
         return self.BW*self.DC_gain
 
     def __get_goodness(self) -> float: 
-        return self.BW*self.OP_current_goodness
+        goodness = self.BW*self.OP_current_goodness
+        if goodness > 0:
+            return goodness
+        else:
+            return 0
         # return self.GBWP*self.OP_current_goodness
     
     def get_AC_analysis(self):
