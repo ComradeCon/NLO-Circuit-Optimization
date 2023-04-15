@@ -7,7 +7,7 @@ class SubCircuitDictionaries:
     def __init__(self) -> None:
         pass
     
-    def get_trans_dict(self) -> dict:
+    def get_trans_dict(self) -> dict: # path to transistor models
         return {
             "2N2222A" : "library/2N2222A.lib",
             "ZTX107-HI" : "library/ZTX107-HI.lib",
@@ -16,7 +16,8 @@ class SubCircuitDictionaries:
         }
 
     # resistors in ohms
-    # capacitors in micro farads 
+    # capacitors in micro farads
+    # default starting state for each resistor
     def get_cascode1_dict(self) -> dict[str, float | dict[str,str]]:
         return {
             'Cc' : 10**6,
@@ -57,6 +58,7 @@ class SubCircuitDictionaries:
             'RE' : 133
         }
 
+    # entire circuit definition packaged into dictionary
     def get_feedbackamp_dict(self, trans):
         return {
             'cascode1' : self.get_cascode1_dict(),
@@ -89,7 +91,7 @@ class Cascode1(SubCircuitFactory):
         self.R('RE','VE2','gnd',cascodeDict['RE']@u_Ohm)
 
 # Cc on input but not output
-class Cascode2(SubCircuitFactory):
+class Cascode2(SubCircuitFactory): # need a second one with diff name
     NODES = ('Vcc','gnd','in_node','out')
     NAME = 'cascode2'
     def __init__(self, cascodeDict : dict[str, float | dict[str, str]], trans : str):
@@ -163,7 +165,7 @@ class FeedBackAmp(SubCircuitFactory):
         self.X('out_stage','outStage','Vcc','gnd','gain_out','out')
 
 
-def get_base_circuit() -> Circuit:
+def get_base_circuit() -> Circuit: 
     # circuit setup
     circuit = Circuit('main')
     

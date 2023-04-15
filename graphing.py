@@ -4,12 +4,12 @@ import math
 
 from PySpice.Probe.Plot import plot
 
+# making bode plots
 def bode_diagram(axes, frequency, gain, phase, **kwargs):
     bode_diagram_gain(axes[0], frequency, gain, **kwargs)
     bode_diagram_phase(axes[1], frequency, phase, **kwargs)
 
 def bode_diagram_gain(axe, frequency, gain, **kwargs):
-
     axe.semilogx(frequency, gain, **kwargs)
     axe.grid(True)
     axe.grid(True, which='minor')
@@ -17,7 +17,6 @@ def bode_diagram_gain(axe, frequency, gain, **kwargs):
     axe.set_ylabel("Gain [dB]")
 
 def bode_diagram_phase(axe, frequency, phase, **kwargs):
-
     axe.semilogx(frequency, phase, **kwargs)
     axe.set_ylim(-math.pi, math.pi)
     axe.grid(True)
@@ -30,7 +29,6 @@ def bode_diagram_phase(axe, frequency, phase, **kwargs):
 
 def make_bode_plot(analysis):
     figure, (ax1, ax2) = plt.subplots(2, figsize=(20, 10))
-
     plt.title("Bode Diagram of an Operational Amplifier")
     bode_diagram(axes=(ax1, ax2),
                 frequency=analysis.frequency,
@@ -43,8 +41,6 @@ def make_bode_plot(analysis):
     ax1.hlines([61.5,58.5],[0,0],[100*10**6,100*10**6])
     plt.tight_layout()
     plt.show()
-
-
 
 colors = ["red","green","blue"]
 label = ["Start", "SA", "GRW"]

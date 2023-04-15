@@ -1,5 +1,6 @@
 import atexit
 
+# prevents windows from sleeping while program is running 
 class WindowsInhibitor:
     ES_CONTINUOUS = 0x80000000
     ES_SYSTEM_REQUIRED = 0x00000001
@@ -24,11 +25,13 @@ class WindowsInhibitor:
 osSleep = WindowsInhibitor()
 osSleep.inhibit()
 
+# un inhibits no sleep when program finishes
 def exit_handler():
     osSleep.uninhibit()
 
 atexit.register(exit_handler)
 
+# gets user input and stores in object for easy global access
 class singleton:
     def __init__(self) -> None:
         print()
@@ -38,7 +41,7 @@ class singleton:
             self.isRand = False
             self.kAnnealing = 2000
             self.nWalk = 3
-            self.T = 1
+            self.T = 30
             self.kGreedy = 6000
             self.sigma = 0.3
             self.dBeta = True
@@ -48,7 +51,7 @@ class singleton:
             self.isRand = True
             self.kAnnealing = 1000
             self.nWalk = 1
-            self.T = 1
+            self.T = 30
             self.kGreedy = 250
             self.sigma = 0.3
             self.dBeta = False
@@ -69,7 +72,7 @@ class singleton:
             print("Simulated Annealing")
             self.kAnnealing = int(input("Num steps per walk: "))
             self.nWalk = int(input("Num walks: "))
-            self.T = float(input("Starting Temperature (recommend <1.25): "))
+            self.T = float(input("Starting Temperature (recommend <30): "))
             print()
             print("Greedy Random Walk")
             self.kGreedy = int(input("Num steps: "))
